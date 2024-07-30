@@ -1,0 +1,112 @@
+------------------CODIGO COMENTADO-----------------
+
+public async Task<Quote>? Create(Quote quote)
+{
+    // Busca si ya existe una cotización con el mismo Id en el contexto de la base de datos.
+    var id = _context.Quotes.Find(quote.Id);
+
+    // Si ya existe una cotización con ese Id, retorna null.
+    if (id != null)
+    {
+        return null;
+    }
+
+    // Agrega la nueva cotización al contexto de la base de datos.
+    _context.Quotes.Add(quote);
+
+    // Guarda los cambios en la base de datos de forma asíncrona.
+    await _context.SaveChangesAsync();
+
+    // Obtiene la información de la mascota relacionada con la cotización.
+    var pet = await _petsServices.GetPetOwner(quote.PetId);
+
+    // Si no se encuentra la mascota, lanza una excepción.
+    if (pet == null)
+    {
+        throw new Exception("Could not find the owner");
+    }
+
+    // Obtiene el email del dueño de la mascota.
+    var owner = await _ownersServices.GetOwnerEmail(pet.OwnerId);
+
+    // Define los detalles del correo electrónico a enviar.
+    var from = "MS_wNBFEQ@trial-3vz9dle771q4kj50.mlsender.net"; // Correo del remitente.
+    var fromName = ""; // Nombre del remitente.
+    var to = new List<string> { owner.Email }; // Lista con el correo del destinatario.
+    var toName = new List<string> { owner.Names }; // Lista con el nombre del destinatario.
+    var subject = "New Quote"; // Asunto del correo.
+    var text = $"Hi {owner.Names}, your quote has been confirm for {quote.Date}"; // Cuerpo del correo en texto plano.
+    var html = $"<p>Hi {owner.Names},</p><br/><p>your quote has been confirm for {quote.Date}</p>"; // Cuerpo del correo en HTML.
+
+    // Envía el correo electrónico al dueño de la mascota utilizando el servicio de correos.
+    await _emailsServices.SendEmailAsync(from, fromName, to, toName, subject, text, html);
+
+    // Retorna la cotización creada.
+    return quote;
+}
+
+
+---------------------EXPLICACION MAS DETALLADA------------------------
+
+Explicación Paso a Paso
+
+1. Buscar una Cotización Existente:
+
+var id = _context.Quotes.Find(quote.Id);
+Busca si ya existe una cotización con el mismo Id en el contexto de la base de datos.
+
+2. Verificar la Existencia de la Cotización:
+
+if (id != null)
+{
+    return null;
+}
+Si ya existe una cotización con ese Id, retorna null para indicar que no se puede crear una nueva cotización con el mismo Id.
+
+3. Agregar la Nueva Cotización:
+
+_context.Quotes.Add(quote);
+await _context.SaveChangesAsync();
+Agrega la nueva cotización al contexto de la base de datos y guarda los cambios de forma asíncrona.
+
+4. Obtener Información del Propietario de la Mascota:
+
+var pet = await _petsServices.GetPetOwner(quote.PetId);
+if (pet == null)
+{
+    throw new Exception("Could not find the owner");
+}
+Obtiene la información de la mascota relacionada con la cotización y verifica si existe. Si no se encuentra, lanza una excepción.
+
+5. Obtener el Email del Propietario:
+
+var owner = await _ownersServices.GetOwnerEmail(pet.OwnerId);
+Obtiene el email del dueño de la mascota utilizando el OwnerId de la mascota.
+
+6. Preparar los Detalles del Correo Electrónico:
+
+var from = "MS_wNBFEQ@trial-3vz9dle771q4kj50.mlsender.net";
+var fromName = "";
+var to = new List<string> { owner.Email };
+var toName = new List<string> { owner.Names };
+var subject = "New Quote";
+var text = $"Hi {owner.Names}, your quote has been confirm for {quote.Date}";
+var html = $"<p>Hi {owner.Names},</p><br/><p>your quote has been confirm for {quote.Date}</p>";
+Define los detalles del correo electrónico, incluyendo el remitente, destinatario(s), asunto y contenido del correo tanto en texto plano como en HTML.
+
+7. Enviar el Correo Electrónico:
+
+await _emailsServices.SendEmailAsync(from, fromName, to, toName, subject, text, html);
+Envía el correo electrónico al dueño de la mascota utilizando el servicio de envío de correos.
+
+8. Retornar la Cotización Creada:
+
+return quote;
+Retorna la cotización creada para confirmar que la operación se completó con éxito.
+
+CONSIDERACIONES
+
+Manejo de Excepciones: El método lanza una excepción si no se puede encontrar al propietario de la mascota. Podrías agregar un manejo más robusto de excepciones para gestionar diferentes tipos de errores.
+Asincronía: Utiliza métodos asíncronos (await) para realizar operaciones de base de datos y de red sin bloquear el hilo principal, mejorando la eficiencia de la aplicación.
+Servicios Inyectados: El uso de servicios como _petsServices, _ownersServices, y _emailsServices sugiere que estos están inyectados mediante Dependency Injection, lo cual es una buena práctica en ASP.NET Core para seguir los principios SOLID.
+Este método asegura que se cree una nueva cotización solo si no existe ya una con el mismo Id, y envía una confirmación por correo electrónico al propietario de la mascota asociada.
